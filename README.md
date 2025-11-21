@@ -17,6 +17,10 @@ A high-performance, NestJS-style logger plugin for [ElysiaJS](https://elysiajs.c
 - 🎯 **Type-Safe** - Full TypeScript support with proper type inference
 - 🚀 **Zero Dependencies Overhead** - Only `pino` and `picocolors`
 
+## ⚡ Benchmark
+
+![Benchmark Results](benchmark/results.png)
+
 ## 📦 Installation
 
 ```bash

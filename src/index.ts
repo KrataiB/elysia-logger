@@ -7,17 +7,27 @@
 import { Elysia } from 'elysia'
 import pc from 'picocolors'
 import { Logger } from './logger'
+import { HttpError } from './http-error'
 import type { LoggerOptions, RequestDetails } from './types'
 
 export { Logger } from './logger'
+export { HttpError } from './http-error'
 export type { LoggerOptions, RequestDetails } from './types'
 
 /**
- * Get pathname from request URL
+ * Get pathname from request URL using fast string manipulation
  * @param url - Full URL string
  * @returns Pathname portion of the URL
  */
-const getPathname = (url: string): string => new URL(url).pathname
+const getPathname = (url: string): string => {
+    const queryIndex = url.indexOf('?')
+    const pathEnd = queryIndex === -1 ? url.length : queryIndex
+    const protocolEnd = url.indexOf('://')
+    if (protocolEnd === -1) return url
+    const pathStart = url.indexOf('/', protocolEnd + 3)
+    if (pathStart === -1) return '/'
+    return url.substring(pathStart, pathEnd)
+}
 
 /**
  * Build request details object from context
@@ -105,31 +115,28 @@ export const logger = (options: LoggerOptions = { transport: 'console', autoLogg
     return app
         .decorate('log', log)
         .derive(({ request }) => {
-            const url = new URL(request.url)
             return {
                 _start: process.hrtime.bigint(),
-                _url: url,
-                _requestId: crypto.randomUUID()
+                _requestId: options.logRequestId === true ? crypto.randomUUID() : undefined
             }
         })
         .onRequest((ctx: { 
             request: Request; 
+            store: { pathname?: string };
             _requestId?: string; 
-            _url?: URL 
         }) => {
             if (options.autoLogging !== false && options.logRequestStart !== false) {
-                const requestInfo = options.logRequestId !== false && ctx._requestId
-                    ? `[${ctx._requestId.slice(0, 8)}] ` 
-                    : ''
-                const pathname = ctx._url?.pathname || getPathname(ctx.request.url)
+                const requestInfo = ctx._requestId ? `[${ctx._requestId.slice(0, 8)}] ` : ''
+                const pathname = getPathname(ctx.request.url)
+                ctx.store.pathname = pathname
                 log.log(`${requestInfo}${ctx.request.method} ${pathname}`, 'Router')
             }
         })
         .onAfterHandle((ctx: { 
             request: Request;
+            store: { pathname?: string };
             _start?: bigint;
             _requestId?: string;
-            _url?: URL;
             params?: Record<string, string>;
             body?: unknown;
         }) => {
@@ -140,16 +147,16 @@ export const logger = (options: LoggerOptions = { transport: 'console', autoLogg
             const durationMs = Number(durationNs) / 1_000_000
             const duration = durationMs < 1 ? `${(durationMs * 1000).toFixed(0)}μs` : `${durationMs.toFixed(2)}ms`
             
-            const requestInfo = options.logRequestId !== false && ctx._requestId
-                ? `[${ctx._requestId.slice(0, 8)}] ` 
-                : ''
+            const requestInfo = ctx._requestId ? `[${ctx._requestId.slice(0, 8)}] ` : ''
             
-            const url = ctx._url || new URL(ctx.request.url)
-            const baseMessage = `${requestInfo}${ctx.request.method} ${url.pathname} ${pc.yellow(`+${duration}`)}`
+            const pathname = ctx.store.pathname || getPathname(ctx.request.url)
+            const baseMessage = requestInfo + ctx.request.method + ' ' + pathname + ' ' + pc.yellow('+' + duration)
             
             // Lazy evaluation: only build details if needed
             let detailsString = ''
             if (options.logDetails) {
+                // Only parse URL object if we really need query params
+                const url = new URL(ctx.request.url)
                 const details = buildRequestDetails(ctx, url)
                 if (Object.keys(details).length > 0) {
                     detailsString = ` ${JSON.stringify(details)}`
@@ -158,7 +165,7 @@ export const logger = (options: LoggerOptions = { transport: 'console', autoLogg
             
             log.log(baseMessage + detailsString, 'Router')
         })
-        .onError(({ code, error, request, set, _url }) => {
+        .onError(({ code, error, request, set, store }) => {
             const err = error as Error & { 
                 message?: string; 
                 name?: string; 
@@ -166,7 +173,7 @@ export const logger = (options: LoggerOptions = { transport: 'console', autoLogg
                 type?: string;
                 errors?: Array<{ path: string; summary?: string; message: string; value: unknown }>;
             }
-            const pathname = _url?.pathname || getPathname(request.url)
+            const pathname = (store as { pathname?: string }).pathname || getPathname(request.url)
             
             if (code === 'VALIDATION') {
                 const errorObj = parseErrorObject(err) as { 
@@ -187,6 +194,10 @@ export const logger = (options: LoggerOptions = { transport: 'console', autoLogg
                     set.status = 400
                     return buildValidationResponse(errors)
                 }
+            } else if (err instanceof HttpError) {
+                log.warn(`${request.method} ${pathname} - ${err.message}`, 'HttpError')
+                set.status = err.status
+                return err.toJSON()
             } else {
                 const message = typeof err.message === 'string' && !err.message.startsWith('{') 
                     ? err.message 

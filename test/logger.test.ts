@@ -1,6 +1,6 @@
 import { describe, it, expect, spyOn, beforeEach, afterEach } from 'bun:test'
 import { Elysia, t } from 'elysia'
-import { logger } from '../src/index'
+import { logger, HttpError } from '../src/index'
 import { existsSync, unlinkSync } from 'fs'
 
 describe('Logger Plugin', () => {

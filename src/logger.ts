@@ -15,6 +15,9 @@ import type { LoggerOptions } from './types'
 export class Logger {
     private pino: pino.Logger
     private options: LoggerOptions
+    private stream: NodeJS.WriteStream
+    private static cachedTime: string = new Date().toISOString().replace('T', ' ').substring(0, 19)
+    private static timer: Timer | null = null
 
     /**
      * Creates a new Logger instance
@@ -22,6 +25,7 @@ export class Logger {
      */
     constructor(options: LoggerOptions = {}) {
         this.options = options
+        this.stream = process.stdout
         this.pino = pino({
             level: options.level || 'info',
             enabled: options.enabled !== false,
@@ -32,6 +36,14 @@ export class Logger {
                 }
             })
         })
+
+        // Start timer if not already started
+        if (!Logger.timer) {
+            Logger.timer = setInterval(() => {
+                Logger.cachedTime = new Date().toISOString().replace('T', ' ').substring(0, 19)
+            }, 1000)
+            Logger.timer.unref() // Don't prevent process exit
+        }
     }
 
     /**
@@ -46,24 +58,29 @@ export class Logger {
             return this.options.formatter(level, message, context || this.options.context)
         }
 
-        const timestamp = new Date().toLocaleString()
         const pid = process.pid
         const ctx = context || this.options.context || 'Elysia'
         
-        // NestJS-style color mapping
-        const colorMap: Record<string, (text: string) => string> = {
-            error: pc.red,      // Red = Danger/Critical
-            warn: pc.yellow,    // Yellow = Warning/Caution
-            info: pc.green,     // Green = Success/Normal
-            debug: pc.magenta,  // Magenta = Debug info
-            verbose: pc.cyan    // Cyan = Detailed info
+        // Pre-computed colors to avoid function calls
+        const colors = {
+            green: '\x1b[32m',
+            yellow: '\x1b[33m',
+            red: '\x1b[31m',
+            magenta: '\x1b[35m',
+            cyan: '\x1b[36m',
+            dim: '\x1b[2m',
+            reset: '\x1b[0m'
         }
-        const levelColor = colorMap[level] || pc.green
 
-        // Dim color for metadata (timestamp, pid, context)
-        const dim = (text: string) => pc.dim(text)
+        let levelColor = colors.green
+        switch (level) {
+            case 'error': levelColor = colors.red; break
+            case 'warn': levelColor = colors.yellow; break
+            case 'debug': levelColor = colors.magenta; break
+            case 'verbose': levelColor = colors.cyan; break
+        }
         
-        return `${pc.green('[Elysia]')} ${dim(pid.toString())}  - ${dim(timestamp)}   ${levelColor(level.toUpperCase())} ${pc.yellow(`[${ctx}]`)} ${message}`
+        return `${colors.green}[Elysia]${colors.reset} ${colors.dim}${pid}  -${colors.reset} ${colors.dim}${Logger.cachedTime}${colors.reset}   ${levelColor}${level.toUpperCase()}${colors.reset} ${colors.yellow}[${ctx}]${colors.reset} ${message}\n`
     }
 
     /**
@@ -77,28 +94,16 @@ export class Logger {
         return str.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '')
     }
 
-    private logToPino(level: string, message: string, context?: string, trace?: string): void {
-        if (this.options.file || this.options.transport === 'json') {
-            const payload = { level, message: this.stripAnsi(message), context: context || this.options.context }
-            if (trace) Object.assign(payload, { trace })
-            
-            switch (level) {
-                case 'info':
-                    this.pino.info(payload)
-                    break
-                case 'error':
-                    this.pino.error(payload)
-                    break
-                case 'warn':
-                    this.pino.warn(payload)
-                    break
-                case 'debug':
-                    this.pino.debug(payload)
-                    break
-                case 'verbose':
-                    this.pino.trace(payload)
-                    break
-            }
+    /**
+     * Write to stdout directly for better performance
+     */
+    private write(message: string): void {
+        // @ts-ignore
+        if (typeof Bun !== 'undefined') {
+            // @ts-ignore
+            Bun.write(Bun.stdout, message)
+        } else {
+            this.stream.write(message)
         }
     }
 
@@ -111,9 +116,9 @@ export class Logger {
         const formatted = this.formatMessage('info', message, context)
         
         if (this.options.transport === 'json' || this.options.file) {
-            this.pino.info({ msg: this.stripAnsi(formatted) })
+            this.pino.info({ msg: this.stripAnsi(formatted).trim() })
         } else {
-            console.log(formatted)
+            this.write(formatted)
         }
     }
 
@@ -127,11 +132,11 @@ export class Logger {
         const formatted = this.formatMessage('error', message, context)
         
         if (this.options.transport === 'json' || this.options.file) {
-            this.pino.error({ msg: this.stripAnsi(formatted), trace })
+            this.pino.error({ msg: this.stripAnsi(formatted).trim(), trace })
         } else {
-            console.error(formatted)
+            this.write(formatted)
             if (trace) {
-                console.error(trace)
+                this.write(`${trace}\n`)
             }
         }
     }
@@ -145,9 +150,9 @@ export class Logger {
         const formatted = this.formatMessage('warn', message, context)
         
         if (this.options.transport === 'json' || this.options.file) {
-            this.pino.warn({ msg: this.stripAnsi(formatted) })
+            this.pino.warn({ msg: this.stripAnsi(formatted).trim() })
         } else {
-            console.warn(formatted)
+            this.write(formatted)
         }
     }
 
@@ -160,9 +165,9 @@ export class Logger {
         const formatted = this.formatMessage('debug', message, context)
         
         if (this.options.transport === 'json' || this.options.file) {
-            this.pino.debug({ msg: this.stripAnsi(formatted) })
+            this.pino.debug({ msg: this.stripAnsi(formatted).trim() })
         } else {
-            console.debug(formatted)
+            this.write(formatted)
         }
     }
 
@@ -175,9 +180,9 @@ export class Logger {
         const formatted = this.formatMessage('verbose', message, context)
         
         if (this.options.transport === 'json' || this.options.file) {
-            this.pino.trace({ msg: this.stripAnsi(formatted) })
+            this.pino.trace({ msg: this.stripAnsi(formatted).trim() })
         } else {
-            console.log(formatted)
+            this.write(formatted)
         }
     }
 }
