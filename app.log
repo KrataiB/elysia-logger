@@ -1,0 +1,8 @@
+{"level":30,"time":1763708432832,"pid":21147,"hostname":"krataibs-MacBook-Pro.local","level":"info","message":"🦊 Elysia is running at http://localhost:3001","context":"Elysia"}
+{"level":30,"time":1763708432895,"pid":21147,"hostname":"krataibs-MacBook-Pro.local","level":"info","message":"Routes:","context":"Elysia"}
+{"level":30,"time":1763708432896,"pid":21147,"hostname":"krataibs-MacBook-Pro.local","level":"info","message":"GET /","context":"Router"}
+{"level":30,"time":1763708432898,"pid":21147,"hostname":"krataibs-MacBook-Pro.local","level":"info","message":"GET /user/:id","context":"Router"}
+{"level":30,"time":1763708432903,"pid":21147,"hostname":"krataibs-MacBook-Pro.local","level":"info","message":"POST /a","context":"Router"}
+{"level":30,"time":1763708445775,"pid":21147,"hostname":"krataibs-MacBook-Pro.local","level":"info","message":"GET / +1ms {\"query\":{\"name\":\"John\",\"age\":\"25\"}}","context":"Router"}
+{"level":30,"time":1763708447084,"pid":21147,"hostname":"krataibs-MacBook-Pro.local","level":"info","message":"GET /user/123 +0ms {\"params\":{\"id\":\"123\"}}","context":"Router"}
+{"level":30,"time":1763708448475,"pid":21147,"hostname":"krataibs-MacBook-Pro.local","level":"info","message":"POST /a +0ms {\"body\":{\"test\":\"value\",\"number\":42}}","context":"Router"}

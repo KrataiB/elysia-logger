@@ -1,0 +1,36 @@
+{
+  "name": "elysia-logger",
+  "version": "0.2.0",
+  "description": "A simple logger for ElysiaJS",
+  "author": "KrataiB",
+  "license": "MIT",
+  "keywords": ["elysia", "logger", "logging", "pino", "nestjs", "elysiajs", "plugin"],
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && bun build ./src/index.ts --outdir ./dist --target bun && tsc",
+    "prepublishOnly": "bun run build"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/node": "^24.10.1",
+    "typescript": "^5"
+  },
+  "peerDependencies": {
+    "elysia": ">=1.0.0"
+  },
+  "dependencies": {
+    "picocolors": "^1.1.1",
+    "pino": "^10.1.0"
+  }
+}
