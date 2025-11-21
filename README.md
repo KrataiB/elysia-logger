@@ -176,6 +176,40 @@ log.log("Hello from standalone logger!");
 log.error("Error message", "Stack trace");
 ```
 
+## 🚨 Error Handling
+
+Elysia Logger comes with a built-in `HttpError` class (similar to `elysia-http-error`) for easy error handling:
+
+```typescript
+import { Elysia } from "elysia";
+import { logger, HttpError } from "elysia-logger";
+
+const app = new Elysia()
+  .use(logger())
+  .get("/not-found", () => {
+    throw HttpError.NotFound("Resource not found");
+  })
+  .get("/bad-request", () => {
+    throw HttpError.BadRequest("Invalid input");
+  })
+  .get("/custom-error", () => {
+    throw new HttpError(418, "I'm a teapot");
+  });
+```
+
+Available static methods:
+
+- `HttpError.BadRequest(message?)` (400)
+- `HttpError.Unauthorized(message?)` (401)
+- `HttpError.Forbidden(message?)` (403)
+- `HttpError.NotFound(message?)` (404)
+- `HttpError.MethodNotAllowed(message?)` (405)
+- `HttpError.Conflict(message?)` (409)
+- `HttpError.PreconditionFailed(message?)` (412)
+- `HttpError.UnprocessableEntity(message?)` (422)
+- `HttpError.TooManyRequests(message?)` (429)
+- `HttpError.InternalServerError(message?)` (500)
+
 ## 📊 Complete Example
 
 ```typescript
