@@ -4,20 +4,15 @@ import { logger, HttpError } from '../src/index'
 import { existsSync, unlinkSync } from 'fs'
 
 describe('Logger Plugin', () => {
-    let consoleLogSpy: any
-    let consoleErrorSpy: any
-    let consoleWarnSpy: any
+    let bunWriteSpy: any
 
     beforeEach(() => {
-        consoleLogSpy = spyOn(console, 'log')
-        consoleErrorSpy = spyOn(console, 'error')
-        consoleWarnSpy = spyOn(console, 'warn')
+        // @ts-ignore
+        bunWriteSpy = spyOn(Bun, 'write')
     })
 
     afterEach(() => {
-        consoleLogSpy?.mockRestore()
-        consoleErrorSpy?.mockRestore()
-        consoleWarnSpy?.mockRestore()
+        bunWriteSpy?.mockRestore()
         
         // Clean up test log file
         if (existsSync('./test.log')) {
@@ -32,12 +27,12 @@ describe('Logger Plugin', () => {
 
         await app.handle(new Request('http://localhost/'))
 
-        expect(consoleLogSpy).toHaveBeenCalled()
-        const calls = consoleLogSpy.mock.calls
-        const routerLog = calls.find((call: any) => call[0].includes('Router'))
+        expect(bunWriteSpy).toHaveBeenCalled()
+        const calls = bunWriteSpy.mock.calls
+        const routerLog = calls.find((call: any) => call[1].includes('Router'))
         expect(routerLog).toBeDefined()
         if (routerLog) {
-            expect(routerLog[0]).toContain('GET /')
+            expect(routerLog[1]).toContain('GET /')
         }
     })
 
@@ -48,12 +43,12 @@ describe('Logger Plugin', () => {
 
         await app.handle(new Request('http://localhost/error'))
 
-        expect(consoleErrorSpy).toHaveBeenCalled()
-        const calls = consoleErrorSpy.mock.calls
-        const errorLog = calls.find((call: any) => call[0].includes('Exception'))
+        expect(bunWriteSpy).toHaveBeenCalled()
+        const calls = bunWriteSpy.mock.calls
+        const errorLog = calls.find((call: any) => call[1].includes('Exception'))
         expect(errorLog).toBeDefined()
         if (errorLog) {
-            expect(errorLog[0]).toContain('Test Error')
+            expect(errorLog[1]).toContain('Test Error')
         }
     })
 
@@ -83,9 +78,9 @@ describe('Logger Plugin', () => {
         expect(data).toHaveProperty('details')
         
         // Should log validation warning
-        expect(consoleWarnSpy).toHaveBeenCalled()
-        const warnCalls = consoleWarnSpy.mock.calls
-        const validationLog = warnCalls.find((call: any) => call[0].includes('ValidationError'))
+        expect(bunWriteSpy).toHaveBeenCalled()
+        const calls = bunWriteSpy.mock.calls
+        const validationLog = calls.find((call: any) => call[1].includes('ValidationError'))
         expect(validationLog).toBeDefined()
     })
 
@@ -96,9 +91,9 @@ describe('Logger Plugin', () => {
 
         await app.handle(new Request('http://localhost/user/123?name=John'))
 
-        const calls = consoleLogSpy.mock.calls
+        const calls = bunWriteSpy.mock.calls
         const detailLog = calls.find((call: any) => 
-            call[0].includes('params') || call[0].includes('query')
+            call[1].includes('params') || call[1].includes('query')
         )
         expect(detailLog).toBeDefined()
     })
@@ -110,12 +105,12 @@ describe('Logger Plugin', () => {
 
         await app.handle(new Request('http://localhost/'))
 
-        const calls = consoleLogSpy.mock.calls
+        const calls = bunWriteSpy.mock.calls
         // Should only have one log (completion), not two (start + completion)
-        const routerLogs = calls.filter((call: any) => call[0].includes('Router'))
+        const routerLogs = calls.filter((call: any) => call[1].includes('Router'))
         expect(routerLogs.length).toBe(1)
         // Should include duration (either μs or ms)
-        expect(routerLogs[0][0]).toMatch(/\+\d+(μs|ms)/)
+        expect(routerLogs[0][1]).toMatch(/\+\d+(μs|ms)/)
     })
 
     it('should disable auto-logging when configured', async () => {
@@ -126,8 +121,8 @@ describe('Logger Plugin', () => {
         await app.handle(new Request('http://localhost/'))
 
         // Should not log requests automatically
-        const calls = consoleLogSpy.mock.calls
-        const routerLogs = calls.filter((call: any) => call[0].includes('Router'))
+        const calls = bunWriteSpy.mock.calls
+        const routerLogs = calls.filter((call: any) => call[1].includes('Router'))
         expect(routerLogs.length).toBe(0)
     })
 
@@ -140,8 +135,8 @@ describe('Logger Plugin', () => {
 
         await app.handle(new Request('http://localhost/'))
 
-        const calls = consoleLogSpy.mock.calls
-        const customLog = calls.find((call: any) => call[0].includes('CUSTOM:'))
+        const calls = bunWriteSpy.mock.calls
+        const customLog = calls.find((call: any) => call[1].includes('CUSTOM:'))
         expect(customLog).toBeDefined()
     })
 
