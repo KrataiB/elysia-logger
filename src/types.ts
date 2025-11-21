@@ -50,6 +50,11 @@ export interface LoggerOptions {
      * @default false
      */
     logDetails?: boolean
+    /**
+     * Log request ID (first 8 characters of UUID)
+     * @default true
+     */
+    logRequestId?: boolean
 }
 
 export interface RequestDetails {

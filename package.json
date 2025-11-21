@@ -1,10 +1,18 @@
 {
   "name": "elysia-logger",
-  "version": "0.2.0",
+  "version": "0.3.2",
   "description": "A simple logger for ElysiaJS",
   "author": "KrataiB",
   "license": "MIT",
-  "keywords": ["elysia", "logger", "logging", "pino", "nestjs", "elysiajs", "plugin"],
+  "keywords": [
+    "elysia",
+    "logger",
+    "logging",
+    "pino",
+    "nestjs",
+    "elysiajs",
+    "plugin"
+  ],
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "type": "module",

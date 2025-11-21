@@ -8,20 +8,39 @@ import pino from 'pino'
 import pc from 'picocolors'
 import type { LoggerOptions } from './types'
 
+/**
+ * NestJS-style logger for ElysiaJS with pino backend
+ * @class Logger
+ */
 export class Logger {
     private pino: pino.Logger
+    private options: LoggerOptions
 
-    constructor(private options: LoggerOptions = {}) {
+    /**
+     * Creates a new Logger instance
+     * @param options - Logger configuration options
+     */
+    constructor(options: LoggerOptions = {}) {
+        this.options = options
         this.pino = pino({
             level: options.level || 'info',
-            enabled: options.enabled ?? true,
-            transport: options.file ? {
-                target: 'pino/file',
-                options: { destination: options.file }
-            } : undefined
+            enabled: options.enabled !== false,
+            ...(options.file && {
+                transport: {
+                    target: 'pino/file',
+                    options: { destination: options.file }
+                }
+            })
         })
     }
 
+    /**
+     * Format log message with NestJS-style colors and metadata
+     * @param level - Log level (info, warn, error, debug, verbose)
+     * @param message - Log message
+     * @param context - Optional context label
+     * @returns Formatted log message with colors
+     */
     private formatMessage(level: string, message: string, context?: string): string {
         if (this.options.formatter) {
             return this.options.formatter(level, message, context || this.options.context)
@@ -31,18 +50,27 @@ export class Logger {
         const pid = process.pid
         const ctx = context || this.options.context || 'Elysia'
         
+        // NestJS-style color mapping
         const colorMap: Record<string, (text: string) => string> = {
-            error: pc.red,
-            warn: pc.yellow,
-            debug: pc.blue,
-            verbose: pc.cyan,
-            info: pc.green
+            error: pc.red,      // Red = Danger/Critical
+            warn: pc.yellow,    // Yellow = Warning/Caution
+            info: pc.green,     // Green = Success/Normal
+            debug: pc.magenta,  // Magenta = Debug info
+            verbose: pc.cyan    // Cyan = Detailed info
         }
         const levelColor = colorMap[level] || pc.green
 
-        return `${pc.green('[Elysia]')} ${pc.green(pid.toString())}  - ${timestamp}   ${levelColor(level.toUpperCase())} ${pc.yellow(`[${ctx}]`)} ${pc.green(message)}`
+        // Dim color for metadata (timestamp, pid, context)
+        const dim = (text: string) => pc.dim(text)
+        
+        return `${pc.green('[Elysia]')} ${dim(pid.toString())}  - ${dim(timestamp)}   ${levelColor(level.toUpperCase())} ${pc.yellow(`[${ctx}]`)} ${message}`
     }
 
+    /**
+     * Strip ANSI color codes from string
+     * @param str - String with ANSI codes
+     * @returns Clean string without color codes
+     */
     private stripAnsi(str: string): string {
         // Comprehensive regex to match all ANSI escape codes
         // eslint-disable-next-line no-control-regex
@@ -74,39 +102,82 @@ export class Logger {
         }
     }
 
-    log(message: string, context?: string) {
-        this.logToPino('info', message, context)
-        if (this.options.transport !== 'json') {
-            console.log(this.formatMessage('info', message, context))
+    /**
+     * Log info level message
+     * @param message - Message to log
+     * @param context - Optional context label
+     */
+    log(message: string, context?: string): void {
+        const formatted = this.formatMessage('info', message, context)
+        
+        if (this.options.transport === 'json' || this.options.file) {
+            this.pino.info({ msg: this.stripAnsi(formatted) })
+        } else {
+            console.log(formatted)
         }
     }
 
-    error(message: string, trace?: string, context?: string) {
-        this.logToPino('error', message, context, trace)
-        if (this.options.transport !== 'json') {
-            console.error(this.formatMessage('error', message, context))
-            if (trace) console.error(pc.red(trace))
+    /**
+     * Log error level message with optional stack trace
+     * @param message - Error message
+     * @param trace - Optional stack trace
+     * @param context - Optional context label
+     */
+    error(message: string, trace?: string, context?: string): void {
+        const formatted = this.formatMessage('error', message, context)
+        
+        if (this.options.transport === 'json' || this.options.file) {
+            this.pino.error({ msg: this.stripAnsi(formatted), trace })
+        } else {
+            console.error(formatted)
+            if (trace) {
+                console.error(trace)
+            }
         }
     }
 
-    warn(message: string, context?: string) {
-        this.logToPino('warn', message, context)
-        if (this.options.transport !== 'json') {
-            console.warn(this.formatMessage('warn', message, context))
+    /**
+     * Log warning level message
+     * @param message - Warning message
+     * @param context - Optional context label
+     */
+    warn(message: string, context?: string): void {
+        const formatted = this.formatMessage('warn', message, context)
+        
+        if (this.options.transport === 'json' || this.options.file) {
+            this.pino.warn({ msg: this.stripAnsi(formatted) })
+        } else {
+            console.warn(formatted)
         }
     }
 
-    debug(message: string, context?: string) {
-        this.logToPino('debug', message, context)
-        if (this.options.transport !== 'json') {
-            console.debug(this.formatMessage('debug', message, context))
+    /**
+     * Log debug level message
+     * @param message - Debug message
+     * @param context - Optional context label
+     */
+    debug(message: string, context?: string): void {
+        const formatted = this.formatMessage('debug', message, context)
+        
+        if (this.options.transport === 'json' || this.options.file) {
+            this.pino.debug({ msg: this.stripAnsi(formatted) })
+        } else {
+            console.debug(formatted)
         }
     }
 
-    verbose(message: string, context?: string) {
-        this.logToPino('verbose', message, context)
-        if (this.options.transport !== 'json') {
-            console.log(this.formatMessage('verbose', message, context))
+    /**
+     * Log verbose level message
+     * @param message - Verbose message
+     * @param context - Optional context label
+     */
+    verbose(message: string, context?: string): void {
+        const formatted = this.formatMessage('verbose', message, context)
+        
+        if (this.options.transport === 'json' || this.options.file) {
+            this.pino.trace({ msg: this.stripAnsi(formatted) })
+        } else {
+            console.log(formatted)
         }
     }
 }
