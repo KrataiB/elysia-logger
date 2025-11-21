@@ -54,7 +54,15 @@ export interface LoggerOptions {
      * Log request ID (first 8 characters of UUID)
      * @default true
      */
+    /**
+     * Log request ID (first 8 characters of UUID)
+     * @default true
+     */
     logRequestId?: boolean
+    /**
+     * Custom output stream (for testing)
+     */
+    stream?: { write: (msg: string) => void }
 }
 
 export interface RequestDetails {

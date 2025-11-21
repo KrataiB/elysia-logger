@@ -1,19 +1,18 @@
-import { describe, it, expect, spyOn, beforeEach, afterEach } from 'bun:test'
+import { describe, it, expect, mock, beforeEach, afterEach } from 'bun:test'
 import { Elysia, t } from 'elysia'
 import { logger, HttpError } from '../src/index'
 import { existsSync, unlinkSync } from 'fs'
 
 describe('Logger Plugin', () => {
-    let bunWriteSpy: any
+    let mockStream: { write: any }
 
     beforeEach(() => {
-        // @ts-ignore
-        bunWriteSpy = spyOn(Bun, 'write')
+        mockStream = {
+            write: mock((msg: string) => {})
+        }
     })
 
     afterEach(() => {
-        bunWriteSpy?.mockRestore()
-        
         // Clean up test log file
         if (existsSync('./test.log')) {
             unlinkSync('./test.log')
@@ -22,39 +21,39 @@ describe('Logger Plugin', () => {
 
     it('should log requests', async () => {
         const app = new Elysia()
-            .use(logger())
+            .use(logger({ stream: mockStream }))
             .get('/', () => 'Hello World')
 
         await app.handle(new Request('http://localhost/'))
 
-        expect(bunWriteSpy).toHaveBeenCalled()
-        const calls = bunWriteSpy.mock.calls
-        const routerLog = calls.find((call: any) => call[1].includes('Router'))
+        expect(mockStream.write).toHaveBeenCalled()
+        const calls = mockStream.write.mock.calls
+        const routerLog = calls.find((call: any) => call[0].includes('Router'))
         expect(routerLog).toBeDefined()
         if (routerLog) {
-            expect(routerLog[1]).toContain('GET /')
+            expect(routerLog[0]).toContain('GET /')
         }
     })
 
     it('should log errors', async () => {
         const app = new Elysia()
-            .use(logger())
+            .use(logger({ stream: mockStream }))
             .get('/error', () => { throw new Error('Test Error') })
 
         await app.handle(new Request('http://localhost/error'))
 
-        expect(bunWriteSpy).toHaveBeenCalled()
-        const calls = bunWriteSpy.mock.calls
-        const errorLog = calls.find((call: any) => call[1].includes('Exception'))
+        expect(mockStream.write).toHaveBeenCalled()
+        const calls = mockStream.write.mock.calls
+        const errorLog = calls.find((call: any) => call[0].includes('Exception'))
         expect(errorLog).toBeDefined()
         if (errorLog) {
-            expect(errorLog[1]).toContain('Test Error')
+            expect(errorLog[0]).toContain('Test Error')
         }
     })
 
     it('should handle validation errors', async () => {
         const app = new Elysia()
-            .use(logger())
+            .use(logger({ stream: mockStream }))
             .post('/user', ({ body }) => body, {
                 body: t.Object({
                     email: t.String(),
@@ -78,65 +77,66 @@ describe('Logger Plugin', () => {
         expect(data).toHaveProperty('details')
         
         // Should log validation warning
-        expect(bunWriteSpy).toHaveBeenCalled()
-        const calls = bunWriteSpy.mock.calls
-        const validationLog = calls.find((call: any) => call[1].includes('ValidationError'))
+        expect(mockStream.write).toHaveBeenCalled()
+        const calls = mockStream.write.mock.calls
+        const validationLog = calls.find((call: any) => call[0].includes('ValidationError'))
         expect(validationLog).toBeDefined()
     })
 
     it('should log request details when enabled', async () => {
         const app = new Elysia()
-            .use(logger({ logDetails: true }))
+            .use(logger({ logDetails: true, stream: mockStream }))
             .get('/user/:id', ({ params }) => params)
 
         await app.handle(new Request('http://localhost/user/123?name=John'))
 
-        const calls = bunWriteSpy.mock.calls
+        const calls = mockStream.write.mock.calls
         const detailLog = calls.find((call: any) => 
-            call[1].includes('params') || call[1].includes('query')
+            call[0].includes('params') || call[0].includes('query')
         )
         expect(detailLog).toBeDefined()
     })
 
     it('should not log request start when disabled', async () => {
         const app = new Elysia()
-            .use(logger({ logRequestStart: false }))
+            .use(logger({ logRequestStart: false, stream: mockStream }))
             .get('/', () => 'Hello')
 
         await app.handle(new Request('http://localhost/'))
 
-        const calls = bunWriteSpy.mock.calls
+        const calls = mockStream.write.mock.calls
         // Should only have one log (completion), not two (start + completion)
-        const routerLogs = calls.filter((call: any) => call[1].includes('Router'))
+        const routerLogs = calls.filter((call: any) => call[0].includes('Router'))
         expect(routerLogs.length).toBe(1)
         // Should include duration (either μs or ms)
-        expect(routerLogs[0][1]).toMatch(/\+\d+(μs|ms)/)
+        expect(routerLogs[0][0]).toMatch(/\+\d+(μs|ms)/)
     })
 
     it('should disable auto-logging when configured', async () => {
         const app = new Elysia()
-            .use(logger({ autoLogging: false }))
+            .use(logger({ autoLogging: false, stream: mockStream }))
             .get('/', () => 'Hello')
 
         await app.handle(new Request('http://localhost/'))
 
         // Should not log requests automatically
-        const calls = bunWriteSpy.mock.calls
-        const routerLogs = calls.filter((call: any) => call[1].includes('Router'))
+        const calls = mockStream.write.mock.calls
+        const routerLogs = calls.filter((call: any) => call[0].includes('Router'))
         expect(routerLogs.length).toBe(0)
     })
 
     it('should support custom formatter', async () => {
         const app = new Elysia()
             .use(logger({
+                stream: mockStream,
                 formatter: (level, message, context) => `CUSTOM: [${level}] ${message}`
             }))
             .get('/', () => 'Hello')
 
         await app.handle(new Request('http://localhost/'))
 
-        const calls = bunWriteSpy.mock.calls
-        const customLog = calls.find((call: any) => call[1].includes('CUSTOM:'))
+        const calls = mockStream.write.mock.calls
+        const customLog = calls.find((call: any) => call[0].includes('CUSTOM:'))
         expect(customLog).toBeDefined()
     })
 
@@ -144,7 +144,7 @@ describe('Logger Plugin', () => {
         const logFile = './test.log'
         
         const app = new Elysia()
-            .use(logger({ file: logFile }))
+            .use(logger({ file: logFile })) // File logging uses pino transport, not stream
             .get('/', () => 'Hello')
 
         await app.handle(new Request('http://localhost/'))

@@ -25,7 +25,8 @@ export class Logger {
      */
     constructor(options: LoggerOptions = {}) {
         this.options = options
-        this.stream = process.stdout
+        // @ts-ignore
+        this.stream = options.stream || process.stdout
         this.pino = pino({
             level: options.level || 'info',
             enabled: options.enabled !== false,
@@ -39,6 +40,7 @@ export class Logger {
 
         // Start timer if not already started
         if (!Logger.timer) {
+            Logger.cachedTime = new Date().toISOString().replace('T', ' ').substring(0, 19)
             Logger.timer = setInterval(() => {
                 Logger.cachedTime = new Date().toISOString().replace('T', ' ').substring(0, 19)
             }, 1000)
@@ -98,8 +100,9 @@ export class Logger {
      * Write to stdout directly for better performance
      */
     private write(message: string): void {
+        // Only use Bun.write if we are writing to stdout (not a custom stream)
         // @ts-ignore
-        if (typeof Bun !== 'undefined') {
+        if (typeof Bun !== 'undefined' && this.stream === process.stdout) {
             // @ts-ignore
             Bun.write(Bun.stdout, message)
         } else {
