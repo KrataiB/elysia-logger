@@ -322,7 +322,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## 📮 Issues
 
-Found a bug? Have a feature request? Please [open an issue](https://github.com/yourusername/elysia-logger/issues).
+Found a bug? Have a feature request? Please [open an issue](https://github.com/krataib/elysia-logger/issues).
 
 ## 🌟 Show Your Support
 
