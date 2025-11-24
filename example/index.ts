@@ -2,7 +2,7 @@ import { Elysia } from "elysia";
 import { logger } from "../src/index";
 
 const app = new Elysia()
-  .use(logger({ context: "DDD" }))
+  .use(logger({ name: "DDD", context: "WWW" }))
   .get("/", () => "Hello Elysia")
   .get("/error", () => {
     throw new Error("This is an error");

@@ -162,11 +162,11 @@ describe("Logger Plugin", () => {
     // File should be created
     expect(existsSync(logFile)).toBe(true);
   });
-  it("should use custom context when provided", async () => {
+  it("should use custom name when provided", async () => {
     const app = new Elysia()
       .use(
         logger({
-          context: "CUSTOM_CTX",
+          name: "CUSTOM_NAME",
           stream: mockStream,
         })
       )
@@ -175,9 +175,9 @@ describe("Logger Plugin", () => {
     await app.handle(new Request("http://localhost/"));
 
     const calls = mockStream.write.mock.calls;
-    const customContextLog = calls.find((call: any) =>
-      call[0].includes("[CUSTOM_CTX]")
+    const customNameLog = calls.find((call: any) =>
+      call[0].includes("[CUSTOM_NAME]")
     );
-    expect(customContextLog).toBeDefined();
+    expect(customNameLog).toBeDefined();
   });
 });

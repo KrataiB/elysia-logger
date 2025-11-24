@@ -78,6 +78,9 @@ app.use(
 
     // Context name for logs
     context: "MyApp", // default: 'Elysia'
+
+    // Custom server name for logs
+    name: "MyServer", // default: 'Elysia'
   })
 );
 ```
@@ -254,6 +257,7 @@ console.log("Server running on http://localhost:3000");
 | `enabled`         | `boolean`                                                      | `true`      | Enable/disable logging        |
 | `level`           | `'fatal' \| 'error' \| 'warn' \| 'info' \| 'debug' \| 'trace'` | `'info'`    | Minimum log level             |
 | `context`         | `string`                                                       | `'Elysia'`  | Default context name          |
+| `name`            | `string`                                                       | `'Elysia'`  | Custom server name            |
 | `file`            | `string`                                                       | `undefined` | File path for JSON logs       |
 | `autoLogging`     | `boolean`                                                      | `true`      | Auto-log requests/responses   |
 | `logRequestStart` | `boolean`                                                      | `true`      | Log when request starts       |
