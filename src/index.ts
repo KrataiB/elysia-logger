@@ -217,6 +217,7 @@ export const logger =
             message: string;
             value: unknown;
           }>;
+          status?: number;
         };
         const pathname =
           (store as { pathname?: string }).pathname || getPathname(request.url);
@@ -260,9 +261,28 @@ export const logger =
           );
           set.status = err.status;
           return err.toJSON();
+        } else if (
+          typeof err === "object" &&
+          err !== null &&
+          "status" in err &&
+          "message" in err
+        ) {
+          // Handle duck-typed HttpError (e.g. throw { status: 404, message: "Not Found" })
+          log.warn(
+            `${request.method} ${pathname} - ${err.message}`,
+            "HttpError"
+          );
+          set.status = (err as any).status;
+          return {
+            status: (err as any).status,
+            message: (err as any).message,
+          };
         } else {
+          // Handle string errors or standard errors
           const message =
-            typeof err.message === "string" && !err.message.startsWith("{")
+            typeof err === "string"
+              ? err
+              : typeof err.message === "string" && !err.message.startsWith("{")
               ? err.message
               : err.name || "Unknown error";
 
@@ -271,6 +291,10 @@ export const logger =
             err.stack,
             "Exception"
           );
+
+          if (typeof err === "string") {
+            return err;
+          }
         }
       })
       .onStart((app) => {

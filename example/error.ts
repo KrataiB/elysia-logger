@@ -1,9 +1,11 @@
 import { Elysia } from "elysia";
-import { logger } from "../src/index";
+import { HttpError, logger } from "../src/index";
 
 const app = new Elysia()
   .use(logger({}))
-  .get("/", () => "Hello World")
+  .get("/", () => {
+    throw HttpError.NotFound("dd");
+  })
   .listen(3000);
 
 console.log(

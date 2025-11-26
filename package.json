@@ -1,6 +1,6 @@
 {
   "name": "elysia-logger",
-  "version": "0.5.0",
+  "version": "0.5.2",
   "description": "A simple logger for ElysiaJS",
   "author": "KrataiB",
   "license": "MIT",
